@@ -1,0 +1,50 @@
+substitutions:
+  devicename: eh-sens01
+  upper_devicename: Livingroom
+
+esphome:
+  name: ${devicename}
+  platform: esp8266
+  board: esp12e
+
+logger:
+
+ota:
+  password: !secret ota-pwd
+  num_attempts: 4
+  safe_mode: false
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+wifi:
+  use_address: 172.16.106.50
+  domain: ".home"
+  ssid: !secret wifi-name
+  password: !secret wifi-pw
+  # fast_connect: true
+  # manual_ip:
+  #   static_ip: 172.16.108.51
+  #   gateway: 172.16.108.1
+  #   subnet: 255.255.252.0
+  #   dns1: 172.16.108.1
+
+api:
+  password: !secret eh-lilygot5-1-api
+  encryption:
+    key: !secret eh-lilygot5-1-noise
+  
+
+deep_sleep:
+  id: deep_sleep_1
+  run_duration: 1min
+  sleep_duration: 1min
+
+sensor:
+  - platform: uptime
+    name: Uptime Sensor
+  - platform: adc
+    pin: VCC
+    name: "VCC Voltage"
+

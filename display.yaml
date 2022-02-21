@@ -1,0 +1,74 @@
+font:
+  - file: 'fonts/SourceSansPro-Bold.ttf'
+    id: fontid0
+    size: 130
+    glyphs: "0123456789:."
+  - file: 'fonts/SourceSansPro-Bold.ttf'
+    id: fontid1
+    size: 40
+    glyphs: "0123456789:."
+  - file: 'fonts/IBMPlexMono-Bold.ttf'
+    id: fontid2
+    size: 40
+  - file: 'fonts/IBMPlexMono-Bold.ttf'
+    id: fontid3
+    size: 30
+  - file: 'fonts/materialdesignicons-webfont.ttf'
+    id: fontid4
+    size: 200
+    glyphs: 
+      - "󰖔" # clear-night
+      - "󰖐" # cloudy
+      - "󰖕" # partlycloudy
+      - "󰖑" # fog      
+      - "󰖒" # hail
+      - "󰖓" # lightning
+      - "󰙾" # lightning-rainy
+      - "󰖖" # pouring
+      - "󰖗" # rainy
+      - "󰼶" # snowy
+      - "󰙿" # snowy-rainy
+      - "󰖙" # sunny
+      - "󰖝" # windy
+      - "󰖞" # windy-variant
+      - "󰼸" # exceptional
+  - file: 'fonts/materialdesignicons-webfont.ttf'
+    id: fontid5
+    size: 110
+    glyphs: 
+      - "󱆴" # mdi-water-boiler-off 󱆴
+      - "󰾒" # mdi-water-boiler 󰾒
+  - file: 'fonts/materialdesignicons-webfont.ttf'
+    id: fontid6
+    size: 80
+    glyphs: 
+      - "󰇥" # mdi-duck 󰇥
+  - file: 'fonts/materialdesignicons-webfont.ttf'
+    id: fontid7
+    size: 40
+    glyphs: 
+      - "󰔏" #mdi-thermometer
+
+display:
+  - platform: lilygo_t5_47_display
+    id: mydisplay
+    rotation: 270
+    update_interval: never
+    clear: false
+    full_update_every: 20
+    power_off_delay_enabled: false
+    lambda: |-
+       it.strftime(3, -30, id(fontid0), TextAlign::TOP_LEFT, "%H:%M", id(homeassistant_time).now());
+       it.strftime(440, -5, id(fontid1), TextAlign::TOP_CENTER, "%d.%m.%Y", id(homeassistant_time).now());
+       it.printf(5, 100, id(fontid4), TextAlign::TOP_LEFT, "%s", id(fc_weather).state.c_str());
+       it.printf(485, 310, id(fontid0), TextAlign::BOTTOM_RIGHT, "%.1f", id(kaczkitemp).state);
+       it.printf(480, 180, id(fontid2), TextAlign::TOP_LEFT, "°C");
+       it.printf(295, 130, id(fontid2), TextAlign::TOP_CENTER, "%.1f", id(outside_humid).state);
+       it.printf(295, 100, id(fontid3), TextAlign::TOP_CENTER, "%%");
+       it.printf(465, 130, id(fontid2), TextAlign::TOP_CENTER, "%.1f", id(outside_pressure).state);
+       it.printf(465, 100, id(fontid3), TextAlign::TOP_CENTER, "hPa");
+       it.printf(5, 415, id(fontid6), TextAlign::TOP_LEFT, "󰇥");
+       it.printf(75, 408, id(fontid7), TextAlign::TOP_LEFT, "󰔏");
+       it.printf(115, 400, id(fontid2), TextAlign::TOP_LEFT, "%.1f°C", id(kaczkitemp).state);
+       it.printf(115, 442, id(fontid2), TextAlign::TOP_LEFT, "%.0fhPa", id(kaczkihumi).state);
+       it.printf(5, 950, id(fontid5), TextAlign::BASELINE_LEFT, "%s", id(waterheater1).state.c_str());

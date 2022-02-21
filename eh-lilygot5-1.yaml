@@ -1,0 +1,208 @@
+substitutions:
+  devicename: eh-lilygot5-1
+  upper_devicename: Livingroom
+
+esphome:
+  name: ${devicename}
+  platform: ESP32
+#  board: esp-wrover-kit
+  board: m5stack-core2
+
+logger:
+
+ota:
+  password: !secret ota-pwd
+  num_attempts: 4
+  safe_mode: false
+
+mdns:
+  disabled: true
+
+wifi:
+  use_address: 172.16.108.51
+  domain: ".home"
+  ssid: kaw
+  password: !secret eh-lilygot5-1-wifi
+  fast_connect: true
+  manual_ip:
+    static_ip: 172.16.108.51
+    gateway: 172.16.108.1
+    subnet: 255.255.252.0
+    dns1: 172.16.108.1
+
+
+external_components:
+  # - source:
+  #     type: git
+  #     url: https://github.com/vbaksa/esphome
+  #     ref: dev
+  #   components: [lilygo_t5_47_display, lilygo_t5_47_battery]
+  - source:
+      type: local
+      path: "/home/me/repos/einkdev/esphome-kaweksl/esphome/components"
+    components: [lilygo_t5_47_display, lilygo_t5_47_battery]
+  # - source: github://ashald/esphome@lilygo-t5-47
+  #   components:
+  #     - lilygo_t5_47
+
+
+api:
+  password: !secret eh-lilygot5-1-api
+  encryption:
+    key: !secret eh-lilygot5-1-noise
+  services:
+    - service: refresh_screen
+      then:
+        - component.update: mydisplay
+    - service: clear_screen
+      then:
+        - lambda: id(mydisplay).clear();
+    - service: clear_and_refresh
+      then:
+        - lambda: id(mydisplay).clear();
+        - delay: 1000ms
+        - component.update: mydisplay
+
+deep_sleep:
+  id: deep_sleep_1
+  # run_duration: 1min
+  # sleep_duration: 1min
+
+sensor:
+  - platform: uptime
+    name: Uptime Sensor
+  # - platform: lilygo_t5_47_battery
+  #   id: battery
+  #   voltage:
+  #     name: "Battery Voltage"
+  # - platform: template
+  #   name: "${devicename} Battery"
+  #   id: batt
+  #   unit_of_measurement: "%"
+  #   accuracy_decimals: 0
+  #   device_class: battery
+  #   lambda: |-
+  #     int y = (1-(4.1-id(battery).voltage->state)/(4.1-3.3))*100;
+  #     if (y < 100) {return y;} else {return 100;};
+  - platform: homeassistant
+    id: kaczkitemp
+    entity_id: sensor.tp02_temperature
+    # on_value:
+    #   - lambda: id(updatescreen) = 1;
+  - platform: homeassistant
+    id: kaczkihumi
+    entity_id: sensor.tp02_humidity
+    # on_value:
+    #   - lambda: id(updatescreen) = 1;
+  - platform: homeassistant
+    id: waterheater_watt
+    entity_id: sensor.ehg05_energy_power
+    # on_value:
+    #   - lambda: id(updatescreen) = 1;
+  - platform: homeassistant
+    id: outside_pressure
+    entity_id: sensor.0x00158d0007085d3e_pressure
+    # on_value:
+    #   - lambda: id(updatescreen) = 1;
+  - platform: homeassistant
+    id: outside_humid
+    entity_id: sensor.0x00158d0007085d3e_humidity
+    # on_value:
+    #   - lambda: id(updatescreen) = 1;
+  - platform: homeassistant
+    id: outside_temp
+    entity_id: sensor.0x00158d0007085d3e_temperature
+    # on_value:
+    #   - lambda: id(updatescreen) = 1;
+  - platform: homeassistant
+    id: solardom_today
+    entity_id: sensor.my_solis_inverter_energy_today_2
+    # on_value:
+    #   - lambda: id(updatescreen) = 1;
+  - platform: homeassistant
+    id: solardom_thisyear
+    entity_id: sensor.my_solis_inverter_energy_this_year_2
+    # on_value:
+    #   - lambda: id(updatescreen) = 1;
+      
+text_sensor:
+  - platform: homeassistant
+    id: waterheater1
+    entity_id: switch.socket
+    on_value:
+      - lambda: id(updatescreen) = 1;
+    filters:
+        - map:
+            - off -> 󱆴
+            - on -> 󰾒
+  - platform: homeassistant
+    id: leak1
+    entity_id: binary_sensor.ld01_water_leak
+    on_value:
+      - lambda: id(updatescreen) = 1;
+  - platform: homeassistant
+    entity_id: sensor.openweathermap_forecast_condition
+    id: fc_weather
+    internal: true
+    filters:
+      - map:
+        - clear-night -> 󰖔
+        - cloudy -> 󰖐
+        - partlycloudy -> 󰖕
+        - fog -> 󰖑
+        - hail -> 󰖒
+        - lightning -> 󰖓
+        - lightning-rainy -> 󰙾
+        - pouring -> 󰖖
+        - rainy -> 󰖗
+        - light rain -> 󰖗
+        - snowy -> 󰖘
+        - snowy-rainy -> 󰙿
+        - sunny -> 󰖙
+        - windy -> 󰖝
+        - windy-variant -> 󰖞
+        - exceptional -> 󰢘
+        - few clouds -> 󰖕
+
+globals:
+   - id: updatescreen
+     type: int
+     restore_value: no
+     initial_value: '0'
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    on_time:
+      - seconds: 0
+        minutes: /1
+        then:
+          - globals.set:
+              id: updatescreen
+              value: '1'
+# Check if important sensor have change, if true, update screen
+# with some delay to allow all sensors to update
+interval:
+  - interval: 1sec 
+    then:
+      - if:
+          condition:
+            lambda: 'return id(updatescreen) >= 1;'
+          then:
+            - lambda: id(updatescreen)++;
+      - if:
+          condition:
+            lambda: 'return id(updatescreen) == 3;'
+          then:
+            - lambda: id(mydisplay).update();
+            - lambda: id(updatescreen) = 10;
+      - if:
+          condition:
+            lambda: 'return id(updatescreen) >= 10;'
+          then:
+            - lambda: id(updatescreen) = 0;
+            # - deep_sleep.enter:
+            #     id: deep_sleep_1
+            #     sleep_duration: 1min
+
+<<: !include display.yaml

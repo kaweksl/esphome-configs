@@ -1,0 +1,175 @@
+substitutions:
+  devicename: eh-sens02
+  upper_devicename: Livingroom
+
+esphome:
+  name: ${devicename}
+  platform: esp8266
+  board: esp12e
+
+logger:
+
+ota:
+  password: !secret ota-pwd
+  num_attempts: 4
+  safe_mode: false
+
+# time:
+#   - platform: homeassistant
+#     id: homeassistant_time
+# time:
+#   - platform: sntp
+#     id: sntp_time
+
+wifi:
+  use_address: 172.16.106.65
+  domain: ".home"
+  ssid: !secret wifi-name
+  password: !secret wifi-pw
+  fast_connect: true
+  manual_ip:
+    static_ip: 172.16.106.65
+    gateway: 172.16.104.1
+    subnet: 255.255.252.0
+    dns1: 172.16.104.1
+
+api:
+  password: !secret eh-lilygot5-1-api
+  encryption:
+    key: !secret eh-lilygot5-1-noise
+  
+
+deep_sleep:
+  id: deep_sleep_1
+  sleep_duration: 1min
+
+i2c:
+  sda: 5
+  scl: 2
+  scan: true
+  id: bus_a
+
+globals:
+  - id: otamode
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: updatestate
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: datachanged
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  # Variables stored in RTC
+  - id: lasthumid
+    type: int
+    restore_value: yes
+    initial_value: '0'
+  - id: lasttemp
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+mqtt:
+  id: mqtt_client
+  broker: 172.16.17.21
+  username: sens02
+  password: golgol01
+  discovery: true
+  will_message:
+    topic: myavailability/topic
+    payload: none
+  on_message:
+    - topic: livingroom/ota_mode
+      payload: 'ON'
+      then:
+        - logger.log:
+            format: 'Deep sleep prevent message on'
+        - globals.set:
+            id: otamode
+            value: 'true'
+    - topic: livingroom/ota_mode
+      payload: 'OFF'
+      then:
+        - logger.log:
+            format: 'Deep sleep prevent message off'
+        - globals.set:
+            id: otamode
+            value: 'false'
+    - topic: livingroom/sleep_mode
+      payload: 'ON'
+      then:
+        - deep_sleep.enter: deep_sleep_1
+        - globals.set:
+            id: otamode
+            value: 'false'
+
+# id(battv).state < 3.5 &&
+
+interval:
+  - interval: 1sec #check if connected to mqtt, then update and go sleep (if otamode false)
+    then:
+      - if:
+          condition:
+            lambda: 'return ( id(mqtt_client)->is_connected() && id(updatestate) == 0 );'
+          then:
+            - component.update: battv
+            - component.update: temp
+            - lambda: id(updatestate)++;
+      - if:
+          condition:
+            lambda: 'return ( id(updatestate) == 1 && id(otamode) == false );'
+          then:
+            - deep_sleep.enter:
+                id: deep_sleep_1
+                sleep_duration: 1min
+
+sensor:
+  - platform: hdc1080
+    id: temp
+    temperature:
+      name: "Temperature"
+      on_value: # If sensor did change by x amout, perform futher boot
+        - if:
+            condition:
+              lambda: 'return ( id(lasttemp) - x <= -0.5 || id(lasttemp) - x >= 0.5 );'
+            then:
+              - globals.set:
+                  id: datachanged
+                  value: 'true'
+              - lambda: 'id(lasttemp) = x;'
+    humidity:
+      name: "Humidity"
+      on_value: # If sensor did change by x amout, perform futher boot
+        - if:
+            condition:
+              lambda: 'return ( id(lasthumid) - x <= -2.0 || id(lasthumid) - x >= 2.0 );'
+            then:
+              - globals.set:
+                  id: datachanged
+                  value: 'true'
+              - lambda: 'id(lasthumid) = x;'
+        - if: # else go to deep sleep
+            condition:
+              lambda: 'return ( id(datachanged) == false);' 
+            then:
+              - deep_sleep.enter:
+                  id: deep_sleep_1
+                  sleep_duration: 1min
+    update_interval: 60s
+  - platform: adc
+    id: battv
+    pin: VCC
+    name: "VCC Voltage"
+    update_interval: 10s
+    filters:
+    - offset: -0.09 # ADC tune
+    on_value_range:
+      - below: 3.0 #Low battery protection
+        then:
+          - deep_sleep.enter:
+              id: deep_sleep_1
+              sleep_duration: 30min
+
